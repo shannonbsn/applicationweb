@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <title>Vanilla JS Example</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.fluid.classless.min.css">
+</head>
+
+<body>
+  <main>
+    <div>
+      <h1>Vanilla JS Example</h1>
+      <hr>
+      <div style="display: flex; gap: 50px;">
+        <button id="fetch-users">Fetch Users</button>
+        <select name="gender" id="gender">
+          <option value="all">Tout afficher</option>
+          <option value="male">Hommes</option>
+          <option value="female">Femmes</option>
+        </select>
+        <select name="age" id="age">
+          <option value="all-age">Tout afficher</option>
+          <option value="croissant">Croissant</option>
+          <option value="décroissant">Décroissant</option>
+        </select>
+        <div>
+          <input type="search" id="search" placeholder="Rechercher un utilisateur" />
+          <span id="result-count" style="margin-left: 10px; font-weight: bold;"></span>
+        </div>
+      </div>
+    </div>
+    <table id="tbl-users">
+      <thead>
+        <tr>
+          <th>Photo</th>
+          <th>Nom</th>
+          <th>Email</th>
+          <th>Tel</th>
+          <th>Age</th>
+          <th>Genre</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </main>
+
+  <script>
+    let results = [];
+
+    function normalizeString(str) {
+      return str
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim();
+    }
+
+    async function fetchUsers() {
+      try {
+        const response = await fetch('https://randomuser.me/api/?results=20');
+        const data = await response.json();
+        results = data.results;
+        filterAndRender();
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      }
+    }
+
+    function renderUsers(users) {
+      const tbody = document.querySelector('#tbl-users tbody');
+      tbody.innerHTML = users.map(user => `
+        <tr>
+          <td><img src="${user.picture.thumbnail}" alt="${user.name.first} Photo"></td>
+          <td>${user.name.first} ${user.name.last}</td>
+          <td>${user.email}</td>
+          <td>${user.phone}</td>
+          <td>${user.dob.age}</td>
+          <td>${user.gender === "male" ? "🩵" : "💖"}</td>
+        </tr>`
+      ).join('');
+    }
+
+    function filterByAge(users) {
+      const ageFilter = document.querySelector('#age').value;
+      if (ageFilter === 'croissant') {
+        return [...users].sort((a, b) => a.dob.age - b.dob.age);
+      } else if (ageFilter === 'décroissant') {
+        return [...users].sort((a, b) => b.dob.age - a.dob.age);
+      }
+      return users;
+    }
+
+    function filterByGender(users) {
+      const genderFilter = document.querySelector('#gender').value;
+      return users.filter(user => genderFilter === "all" || user.gender === genderFilter);
+    }
+
+    function filterBySearch(users) {
+      const searchValue = normalizeString(document.querySelector('#search').value);
+
+      if (!searchValue) return users;
+
+      return users.filter(user => {
+        const firstName = normalizeString(user.name.first);
+        const lastName = normalizeString(user.name.last);
+        const fullName = `${firstName} ${lastName}`;
+
+        return (
+          firstName.startsWith(searchValue) ||
+          lastName.startsWith(searchValue) ||
+          fullName.startsWith(searchValue)
+        );
+      });
+    }
+
+    function updateResultCount(filteredUsers) {
+      const countSpan = document.getElementById("result-count");
+      countSpan.textContent = `${filteredUsers.length}/${results.length}`;
+    }
+
+    function filterAndRender() {
+      let filteredUsers = results;
+      filteredUsers = filterByGender(filteredUsers);
+      filteredUsers = filterByAge(filteredUsers);
+      filteredUsers = filterBySearch(filteredUsers);
+      renderUsers(filteredUsers);
+      updateResultCount(filteredUsers);
+    }
+
+    document.getElementById('fetch-users').addEventListener('click', fetchUsers);
+    document.getElementById('gender').addEventListener('change', filterAndRender);
+    document.getElementById('age').addEventListener('change', filterAndRender);
+    document.querySelector('#search').addEventListener('input', filterAndRender);
+  </script>
+</body>
+
+</html>
